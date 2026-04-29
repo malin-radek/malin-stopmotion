@@ -12,6 +12,7 @@ Uruchom:
 import json
 import sys
 import time
+from pathlib import Path
 from threading import Thread
 from typing import Optional
 
@@ -31,6 +32,7 @@ from PyQt6.QtWidgets import (
 
 BACKEND = "http://localhost:8000"
 DEFAULT_PROJECT = "default"
+SETTINGS_FILE = Path.home() / ".stopmotion" / "settings.json"
 
 
 # ── Camera thread: pobiera MJPEG ze /stream ──────────────────────────────────
@@ -65,6 +67,22 @@ class CameraWorker(QObject):
         cap.release()
 
 
+# ── Settings Helper ───────────────────────────────────────────────────────────
+
+def _load_settings() -> dict:
+    if SETTINGS_FILE.exists():
+        try:
+            with open(SETTINGS_FILE, 'r') as f:
+                return json.load(f)
+        except Exception:
+            pass
+    return {"project": DEFAULT_PROJECT}
+
+def _save_settings(settings: dict):
+    SETTINGS_FILE.parent.mkdir(parents=True, exist_ok=True)
+    with open(SETTINGS_FILE, 'w') as f:
+        json.dump(settings, f)
+
 # ── Main Window ───────────────────────────────────────────────────────────────
 
 class StopMotionGUI(QMainWindow):
@@ -73,7 +91,10 @@ class StopMotionGUI(QMainWindow):
         self.setWindowTitle("Stop-Motion Studio")
         self.setMinimumSize(1200, 700)
 
-        self.project = DEFAULT_PROJECT
+        # Załaduj zapisane ustawienia
+        self.settings = _load_settings()
+        
+        self.project = self.settings.get("project", DEFAULT_PROJECT)
         self.frames: list[dict] = []
         self.onion_alpha = 0.35
         self.onion_enabled = True
@@ -347,6 +368,8 @@ class StopMotionGUI(QMainWindow):
 
     def _change_project(self):
         self.project = self.project_input.text().strip() or DEFAULT_PROJECT
+        self.settings["project"] = self.project
+        _save_settings(self.settings)
         self._refresh_frames()
 
     def _set_fps(self, fps: int):

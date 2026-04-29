@@ -11,6 +11,7 @@ import android.os.Bundle
 import android.util.Base64
 import android.util.Log
 import android.view.View
+import android.view.MotionEvent
 import android.widget.ArrayAdapter
 import android.widget.Button
 import android.widget.EditText
@@ -66,7 +67,9 @@ class MainActivity : AppCompatActivity() {
         val timestamp: Long,
         var serverId: String? = null,
         var synced: Boolean = false,
-        var deleted: Boolean = false
+        var deleted: Boolean = false,
+        var trackedPointX: Float = -1f,
+        var trackedPointY: Float = -1f
     )
 
     data class ProjectRecord(
@@ -81,6 +84,7 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var viewFinder: PreviewView
     private lateinit var onionImage: ImageView
+    private lateinit var trackingOverlay: TrackingOverlayView
     private lateinit var statusText: TextView
     private lateinit var projectSpinner: Spinner
     private lateinit var backendInput: EditText
@@ -90,10 +94,21 @@ class MainActivity : AppCompatActivity() {
 
     private var imageCapture: ImageCapture? = null
     private val latestFrame = AtomicReference<ByteArray?>(null)
+    // Latest analysis frame in display orientation (for template matching)
+    private val lastAnalysisBitmap = AtomicReference<Bitmap?>(null)
+    private var cameraRotationDegrees = 0
     private var serverThread: Thread? = null
     private var isServerRunning = false
     private var lastScannedQrCode: String? = null
     private var lastQrScanTime: Long = 0
+
+    private var isTrackingEnabled = false
+    private var trackingTemplate: Bitmap? = null
+    private var trackedPointX = -1f
+    private var trackedPointY = -1f
+    private var lastTrackedPointX = -1f
+    private var lastTrackedPointY = -1f
+    private var onionLayerCount = 1
 
     private val projects = mutableListOf<ProjectRecord>()
     private var currentProjectIndex = 0
@@ -112,6 +127,7 @@ class MainActivity : AppCompatActivity() {
 
         viewFinder = findViewById(R.id.viewFinder)
         onionImage = findViewById(R.id.onionImage)
+        trackingOverlay = findViewById(R.id.trackingOverlay)
         statusText = findViewById(R.id.statusText)
         projectSpinner = findViewById(R.id.projectSpinner)
         backendInput = findViewById(R.id.backendInput)
@@ -123,6 +139,8 @@ class MainActivity : AppCompatActivity() {
 
         loadProjects()
         ensureAtLeastOneProject()
+        // Load last used project
+        currentProjectIndex = prefs.getInt("last_project_index", 0).coerceIn(0, projects.lastIndex)
         bindUi()
         handlePairIntent(intent)
 
@@ -156,9 +174,47 @@ class MainActivity : AppCompatActivity() {
         findViewById<Button>(R.id.nextButton).setOnClickListener { moveOnion(1) }
         findViewById<Button>(R.id.deleteButton).setOnClickListener { deleteCurrentFrame(false) }
         findViewById<Button>(R.id.deleteTailButton).setOnClickListener { deleteCurrentFrame(true) }
+
+        // Tracking toggle
+        findViewById<android.widget.CheckBox>(R.id.trackingCheckbox).setOnCheckedChangeListener { _, isChecked ->
+            isTrackingEnabled = isChecked
+            trackingOverlay.trackingEnabled = isChecked
+            if (!isChecked) {
+                trackingOverlay.livePoint = null
+                trackingOverlay.savedPoints = emptyList()
+            }
+            if (isChecked) toast("Śledzenie WŁĄCZONE - dotknij onion aby ustawić punkt")
+            else toast("Śledzenie wyłączone")
+        }
+
+        // Onion layers spinner
+        val onionSpinner = findViewById<Spinner>(R.id.onionLayersSpinner)
+        val layerAdapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, listOf("0", "1", "2", "3", "4", "5"))
+        onionSpinner.adapter = layerAdapter
+        onionSpinner.setSelection(1) // Default 1 layer
+        onionSpinner.setOnItemSelectedListener(object : android.widget.AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(parent: android.widget.AdapterView<*>?, view: View?, position: Int, id: Long) {
+                onionLayerCount = position
+                refreshOnion()
+            }
+            override fun onNothingSelected(parent: android.widget.AdapterView<*>?) = Unit
+        })
+
+        // Tracking: click on trackingOverlay (top layer, receives all touches)
+        // Click sets tracking point on LIVE camera frame
+        trackingOverlay.setOnTouchListener { v, event ->
+            if (event.action == MotionEvent.ACTION_UP && isTrackingEnabled) {
+                setTrackingPoint(event.x / v.width.toFloat(), event.y / v.height.toFloat())
+                true
+            } else {
+                false // pass through when tracking disabled
+            }
+        }
+
         projectSpinner.setOnItemSelectedListener(object : android.widget.AdapterView.OnItemSelectedListener {
             override fun onItemSelected(parent: android.widget.AdapterView<*>?, view: View?, position: Int, id: Long) {
                 currentProjectIndex = position
+                prefs.edit().putInt("last_project_index", position).apply()
                 onionIndex = activeProject().frames.indexOfLast { !it.deleted }
                 refreshOnion()
                 updateStatus()
@@ -185,9 +241,25 @@ class MainActivity : AppCompatActivity() {
             
             imageAnalysis.setAnalyzer(cameraExecutor) { proxy ->
                 try {
-                    val bitmap = proxy.toBitmap()
+                    val rawBitmap = proxy.toBitmap()
+                    // Rotate to display orientation so template matching is consistent
+                    cameraRotationDegrees = proxy.imageInfo.rotationDegrees
+                    val bitmap = if (cameraRotationDegrees != 0) rotateBitmap(rawBitmap, cameraRotationDegrees) else rawBitmap
+                    lastAnalysisBitmap.set(bitmap)
                     latestFrame.set(bitmapToJpeg(bitmap, 70))
                     
+                    // Live tracking display on camera
+                    if (isTrackingEnabled && trackingTemplate != null) {
+                        val tracked = trackPoint(bitmap)
+                        if (tracked != null) {
+                            trackedPointX = tracked.first
+                            trackedPointY = tracked.second
+                            runOnUiThread { drawLiveTrackingOverlay(tracked.first, tracked.second) }
+                        }
+                    } else if (!isTrackingEnabled) {
+                        runOnUiThread { trackingOverlay.livePoint = null }
+                    }
+
                     // QR scanning with ZXing
                     try {
                         val intArray = IntArray(bitmap.width * bitmap.height)
@@ -275,20 +347,22 @@ class MainActivity : AppCompatActivity() {
                     val bitmap = image.toBitmap()
                     val project = activeProject()
                     if (project.orientation == "landscape" && bitmap.height > bitmap.width) {
-                        runOnUiThread {
-                            Toast.makeText(this@MainActivity, "Projekt jest poziomy, a telefon trzymasz pionowo.", Toast.LENGTH_LONG).show()
-                        }
+                        runOnUiThread { Toast.makeText(this@MainActivity, "Projekt jest poziomy, a telefon trzymasz pionowo.", Toast.LENGTH_LONG).show() }
                     }
                     val frame = FrameRecord(UUID.randomUUID().toString(), System.currentTimeMillis())
                     frameFile(project, frame).writeBytes(bitmapToJpeg(bitmap, 92))
                     thumbFile(project, frame).writeBytes(bitmapToJpeg(scaleBitmap(bitmap, 320), 72))
+
+                    // Save current LIVE tracked position (from analysis stream, not high-res)
+                    if (isTrackingEnabled && trackedPointX >= 0) {
+                        frame.trackedPointX = trackedPointX
+                        frame.trackedPointY = trackedPointY
+                    }
+
                     project.frames.add(frame)
                     onionIndex = project.frames.lastIndex
                     saveProjects()
-                    runOnUiThread {
-                        refreshOnion()
-                        updateStatus()
-                    }
+                    runOnUiThread { refreshOnion(); updateStatus() }
                 } finally {
                     image.close()
                 }
@@ -430,28 +504,61 @@ class MainActivity : AppCompatActivity() {
     private fun refreshOnion() {
         val project = activeProject()
         val frame = project.frames.getOrNull(onionIndex)
-        val frameFileObj = if (frame != null && !frame.deleted) frameFile(project, frame) else null
-        if (frameFileObj != null && frameFileObj.exists()) {
-            var bitmap = BitmapFactory.decodeFile(frameFileObj.absolutePath)
 
-            // Rotate bitmap if project orientation is portrait
-            if (project.orientation == "portrait" && bitmap.width > bitmap.height) {
-                val matrix = Matrix()
-                matrix.postRotate(90f)
-                bitmap = Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true)
-            } else if (project.orientation == "landscape" && bitmap.width < bitmap.height) {
-                val matrix = Matrix()
-                matrix.postRotate(-90f)
-                bitmap = Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true)
+        if (frame != null && !frame.deleted) {
+            var compositeBitmap = BitmapFactory.decodeFile(frameFile(project, frame).absolutePath)
+            if (compositeBitmap == null) { onionImage.setImageDrawable(null); onionImage.visibility = View.GONE; return }
+
+            fun rotateProjBitmap(bmp: Bitmap): Bitmap {
+                if (project.orientation == "portrait" && bmp.width > bmp.height) {
+                    val m = Matrix(); m.postRotate(90f)
+                    return Bitmap.createBitmap(bmp, 0, 0, bmp.width, bmp.height, m, true)
+                } else if (project.orientation == "landscape" && bmp.width < bmp.height) {
+                    val m = Matrix(); m.postRotate(-90f)
+                    return Bitmap.createBitmap(bmp, 0, 0, bmp.width, bmp.height, m, true)
+                }
+                return bmp
             }
 
-            onionImage.setImageBitmap(bitmap)
+            compositeBitmap = rotateProjBitmap(compositeBitmap)
+            val result = compositeBitmap.copy(android.graphics.Bitmap.Config.ARGB_8888, true)
+            val canvas = android.graphics.Canvas(result)
+
+            // Draw previous onion layers (images only, no tracking)
+            for (i in 1..onionLayerCount) {
+                val pf = project.frames.getOrNull(onionIndex - i)
+                if (pf != null && !pf.deleted) {
+                    val f = frameFile(project, pf)
+                    if (!f.exists()) continue
+                    var lb = BitmapFactory.decodeFile(f.absolutePath) ?: continue
+                    lb = rotateProjBitmap(lb)
+                    val p = android.graphics.Paint()
+                    p.alpha = (255 * (onionLayerCount - i + 1) / (onionLayerCount + 1))
+                    canvas.drawBitmap(lb, 0f, 0f, p)
+                }
+            }
+
+            onionImage.setImageBitmap(result)
             onionImage.visibility = View.VISIBLE
             onionImage.scaleType = ImageView.ScaleType.CENTER_CROP
         } else {
             onionImage.setImageDrawable(null)
             onionImage.visibility = View.GONE
         }
+
+        // Draw tracking overlay separately (using VIEW coords = normalized * viewW/H)
+        drawStaticTrackingOverlay()
+    }
+
+    // Draws saved tracking points on overlay (no live point)
+    private fun drawStaticTrackingOverlay() {
+        val project = activeProject()
+        trackingOverlay.trackingEnabled = isTrackingEnabled
+        trackingOverlay.savedPoints = project.frames
+            .filter { !it.deleted && it.trackedPointX >= 0 }
+            .map { TrackPoint(it.trackedPointX, it.trackedPointY) }
+        // No livePoint when just browsing onion
+        trackingOverlay.livePoint = null
     }
 
     private fun updateStatus() {
@@ -709,5 +816,187 @@ class MainActivity : AppCompatActivity() {
         isServerRunning = false
         cameraExecutor.shutdown()
         scheduledExecutor.shutdown()
+    }
+
+    // normX, normY are 0..1 relative to the trackingOverlay (= camera view)
+    private fun setTrackingPoint(normX: Float, normY: Float) {
+        val frame = activeProject().frames.getOrNull(onionIndex) ?: run {
+            toast("Brak klatki do zaznaczenia"); return
+        }
+        if (frame.deleted) return
+
+        // Use the latest analysis bitmap (already in display orientation)
+        val camBitmap = lastAnalysisBitmap.get() ?: run {
+            toast("Brak obrazu z kamery"); return
+        }
+
+        // normX/normY from view → pixel coords in camera bitmap
+        val bx = (normX * camBitmap.width).toInt().coerceIn(0, camBitmap.width - 1)
+        val by = (normY * camBitmap.height).toInt().coerceIn(0, camBitmap.height - 1)
+
+        // Extract template around clicked point
+        val tSize = 80
+        val sx = (bx - tSize / 2).coerceIn(0, camBitmap.width - tSize)
+        val sy = (by - tSize / 2).coerceIn(0, camBitmap.height - tSize)
+        trackingTemplate = Bitmap.createBitmap(camBitmap, sx, sy, tSize, tSize)
+
+        // Store normalized position
+        frame.trackedPointX = normX
+        frame.trackedPointY = normY
+        trackedPointX = normX
+        trackedPointY = normY
+
+        // Show live dot immediately (before next analysis frame arrives)
+        drawLiveTrackingOverlay(normX, normY)
+
+        saveProjects()
+        toast("Punkt ustawiony w (${(normX*100).toInt()}%, ${(normY*100).toInt()}%)")
+        refreshOnion()
+    }
+
+    // Returns NORMALIZED (0..1) coords if found
+    private fun trackPoint(frameBitmap: Bitmap): Pair<Float, Float>? {
+        if (trackingTemplate == null) return null
+        return try {
+            val template = trackingTemplate ?: return null
+            val tW = template.width
+            val tH = template.height
+            val bW = frameBitmap.width
+            val bH = frameBitmap.height
+
+            val searchRadius = 200
+            val cx = (trackedPointX * bW).toInt()
+            val cy = (trackedPointY * bH).toInt()
+            val s0x = (cx - searchRadius).coerceIn(0, bW - tW)
+            val s0y = (cy - searchRadius).coerceIn(0, bH - tH)
+            val e0x = (cx + searchRadius).coerceIn(tW, bW)
+            val e0y = (cy + searchRadius).coerceIn(tH, bH)
+
+            // PASS 1 – coarse step 4
+            var bestSad = Long.MAX_VALUE
+            var bestX = cx; var bestY = cy
+            for (y in s0y until e0y - tH step 4) {
+                for (x in s0x until e0x - tW step 4) {
+                    val sad = sadBitmaps(template, frameBitmap, x, y)
+                    if (sad < bestSad) { bestSad = sad; bestX = x; bestY = y }
+                }
+            }
+
+            // PASS 2 – fine step 1 around best
+            val s1x = (bestX - 8).coerceIn(0, bW - tW)
+            val s1y = (bestY - 8).coerceIn(0, bH - tH)
+            val e1x = (bestX + 8 + tW).coerceIn(tW, bW)
+            val e1y = (bestY + 8 + tH).coerceIn(tH, bH)
+            for (y in s1y until e1y - tH step 1) {
+                for (x in s1x until e1x - tW step 1) {
+                    val sad = sadBitmaps(template, frameBitmap, x, y)
+                    if (sad < bestSad) { bestSad = sad; bestX = x; bestY = y }
+                }
+            }
+
+            val resultX = (bestX + tW / 2).toFloat() / bW
+            val resultY = (bestY + tH / 2).toFloat() / bH
+            Pair(resultX, resultY)
+        } catch (e: Exception) {
+            Log.d(TAG, "Tracking error: ${e.message}")
+            null
+        }
+    }
+
+    // Sum of Absolute Differences – lower = better match
+    private fun sadBitmaps(template: Bitmap, src: Bitmap, srcX: Int, srcY: Int): Long {
+        val tW = template.width; val tH = template.height
+        val tPixels = IntArray(tW * tH)
+        val sPixels = IntArray(tW * tH)
+        template.getPixels(tPixels, 0, tW, 0, 0, tW, tH)
+        src.getPixels(sPixels, 0, src.width, srcX, srcY, tW, tH)
+        var sad = 0L
+        for (i in tPixels.indices) {
+            val r1 = (tPixels[i] shr 16) and 0xFF; val g1 = (tPixels[i] shr 8) and 0xFF; val b1 = tPixels[i] and 0xFF
+            val r2 = (sPixels[i] shr 16) and 0xFF; val g2 = (sPixels[i] shr 8) and 0xFF; val b2 = sPixels[i] and 0xFF
+            val lum1 = (r1 * 77 + g1 * 150 + b1 * 29) shr 8
+            val lum2 = (r2 * 77 + g2 * 150 + b2 * 29) shr 8
+            sad += Math.abs(lum1 - lum2)
+        }
+        return sad
+    }
+
+    private fun rotateBitmap(bitmap: Bitmap, degrees: Int): Bitmap {
+        if (degrees == 0) return bitmap
+        val matrix = Matrix()
+        matrix.postRotate(degrees.toFloat())
+        return Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true)
+    }
+
+    private fun compareBitmaps(b1: Bitmap, b2: Bitmap): Float {
+        if (b1.width != b2.width || b1.height != b2.height) return 0f
+        val pixels1 = IntArray(b1.width * b1.height)
+        val pixels2 = IntArray(b2.width * b2.height)
+        b1.getPixels(pixels1, 0, b1.width, 0, 0, b1.width, b1.height)
+        b2.getPixels(pixels2, 0, b2.width, 0, 0, b2.width, b2.height)
+
+        var matchCount = 0
+        for (i in pixels1.indices) {
+            // Compare luminance (not just blue channel)
+            val r1 = (pixels1[i] shr 16) and 0xFF
+            val g1 = (pixels1[i] shr 8) and 0xFF
+            val b1c = pixels1[i] and 0xFF
+            val lum1 = (r1 * 77 + g1 * 150 + b1c * 29) shr 8
+
+            val r2 = (pixels2[i] shr 16) and 0xFF
+            val g2 = (pixels2[i] shr 8) and 0xFF
+            val b2c = pixels2[i] and 0xFF
+            val lum2 = (r2 * 77 + g2 * 150 + b2c * 29) shr 8
+
+            if (Math.abs(lum1 - lum2) < 40) matchCount++
+        }
+        return matchCount.toFloat() / pixels1.size
+    }
+
+    private fun drawLiveTrackingOverlay(normX: Float, normY: Float) {
+        val project = activeProject()
+        trackingOverlay.savedPoints = project.frames
+            .filter { !it.deleted && it.trackedPointX >= 0 }
+            .map { TrackPoint(it.trackedPointX, it.trackedPointY) }
+        trackingOverlay.livePoint = TrackPoint(normX, normY)
+        trackingOverlay.trackingEnabled = true
+    }
+
+    private fun drawTrackingOverlay(width: Int, height: Int, x: Float, y: Float) {
+        // Create transparent bitmap for drawing
+        val overlay = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+        overlay.eraseColor(android.graphics.Color.TRANSPARENT)
+
+        val canvas = android.graphics.Canvas(overlay)
+        val paint = android.graphics.Paint()
+
+        // Draw red circle at tracked point
+        paint.color = android.graphics.Color.RED
+        paint.style = android.graphics.Paint.Style.STROKE
+        paint.strokeWidth = 8f
+        paint.isAntiAlias = true
+        canvas.drawCircle(x, y, 30f, paint)
+
+        // Draw center dot
+        paint.style = android.graphics.Paint.Style.FILL
+        canvas.drawCircle(x, y, 5f, paint)
+
+        // Draw vector if we have last position
+        if (lastTrackedPointX >= 0 && lastTrackedPointY >= 0) {
+            paint.color = android.graphics.Color.YELLOW
+            paint.strokeWidth = 6f
+            canvas.drawLine(lastTrackedPointX, lastTrackedPointY, x, y, paint)
+
+            // Draw arrow head
+            val headlen = 30f
+            val angle = Math.atan2((y - lastTrackedPointY).toDouble(), (x - lastTrackedPointX).toDouble())
+            canvas.drawLine(x, y,
+                (x - headlen * Math.cos(angle - Math.PI / 6)).toFloat(),
+                (y - headlen * Math.sin(angle - Math.PI / 6)).toFloat(), paint)
+            canvas.drawLine(x, y,
+                (x - headlen * Math.cos(angle + Math.PI / 6)).toFloat(),
+                (y - headlen * Math.sin(angle + Math.PI / 6)).toFloat(), paint)
+        }
+
     }
 }
