@@ -1,0 +1,29 @@
+{
+  "accounts": [
+    {
+      "id": "default",
+      "name": "Default",
+      "created_at": 1777467803965,
+      "devices": []
+    },
+    {
+      "id": "radek",
+      "name": "Radek",
+      "created_at": 1777468838623,
+      "devices": [
+        {
+          "id": "3940c948-f64e-41a6-aad7-1dc98755e7ae",
+          "name": "24030PN60G",
+          "paired_at": 1777470500371,
+          "last_seen": 1777498552114
+        },
+        {
+          "id": "128e33b2-88a0-468c-b02c-46fe19e33508",
+          "name": "sdk_gphone_x86",
+          "paired_at": 1777472942932,
+          "last_seen": 1777499071903
+        }
+      ]
+    }
+  ]
+}

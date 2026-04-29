@@ -1,0 +1,106 @@
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: #151719;
+  color: #eceff1;
+  font-family: Segoe UI, system-ui, sans-serif;
+}
+.app {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  gap: 12px;
+  min-height: 100vh;
+  padding: 12px;
+}
+.stage, .side {
+  min-width: 0;
+}
+.topbar, .capturebar {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 10px;
+}
+.previewWrap {
+  display: grid;
+  place-items: center;
+  height: calc(100vh - 146px);
+  min-height: 420px;
+  background: #050607;
+  border: 1px solid #30363d;
+}
+#stream {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+button, select, input {
+  min-height: 36px;
+  border: 1px solid #3c454d;
+  border-radius: 6px;
+  background: #23272b;
+  color: #f4f6f8;
+  padding: 6px 10px;
+}
+button {
+  cursor: pointer;
+  font-weight: 600;
+}
+button:hover { background: #2f363d; }
+#capture { background: #c94f38; border-color: #c94f38; }
+.side {
+  border-left: 1px solid #30363d;
+  padding-left: 12px;
+  overflow: auto;
+}
+.settings {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+label {
+  display: grid;
+  gap: 4px;
+  color: #bac2c9;
+  font-size: 12px;
+}
+h2 { font-size: 15px; margin: 14px 0 8px; }
+.frames {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+.frame {
+  background: #202428;
+  border: 1px solid #30363d;
+  border-radius: 6px;
+  overflow: hidden;
+}
+.frame img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+}
+.frame span {
+  display: block;
+  padding: 6px;
+  color: #bac2c9;
+  font-size: 12px;
+}
+.pairing {
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  background: #202428;
+  border: 1px solid #3c454d;
+  border-radius: 6px;
+}
+.pairing img { width: 180px; height: 180px; background: white; padding: 8px; }
+.hidden { display: none; }
+.status { color: #9aa4ad; }
+@media (max-width: 900px) {
+  .app { grid-template-columns: 1fr; }
+  .side { border-left: 0; padding-left: 0; }
+}

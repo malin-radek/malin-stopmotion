@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="pl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Stop-Motion Studio</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <main class="app">
+    <section class="stage">
+      <div class="topbar">
+        <select id="accountSelect"></select>
+        <button id="newAccount">Nowe konto</button>
+        <select id="projectSelect"></select>
+        <button id="newProject">Nowy projekt</button>
+        <button id="pairPhone">Paruj telefon</button>
+      </div>
+
+      <div class="previewWrap">
+        <img id="stream" alt="Podglad kamery" src="/stream">
+      </div>
+
+      <div class="capturebar">
+        <button id="capture">Zapisz klatke</button>
+        <button id="undo">Cofnij ostatnia</button>
+        <button id="render">Render MP4</button>
+      </div>
+    </section>
+
+    <aside class="side">
+      <div class="settings">
+        <label>Nazwa projektu <input id="projectName"></label>
+        <label>FPS <input id="fps" type="number" min="1" max="60" value="12"></label>
+        <label>Rozdzielczosc
+          <select id="resolution">
+            <option>1920x1080</option>
+            <option>1280x720</option>
+            <option>3840x2160</option>
+            <option>1080x1920</option>
+          </select>
+        </label>
+        <label>Tryb
+          <select id="orientation">
+            <option value="landscape">poziomy</option>
+            <option value="portrait">pionowy</option>
+          </select>
+        </label>
+        <button id="saveProject">Zapisz ustawienia</button>
+      </div>
+      <div id="pairing" class="pairing hidden"></div>
+      <h2>Klatki</h2>
+      <div id="frames" class="frames"></div>
+      <p id="status" class="status">Ladowanie...</p>
+    </aside>
+  </main>
+  <script src="/static/app.js"></script>
+</body>
+</html>

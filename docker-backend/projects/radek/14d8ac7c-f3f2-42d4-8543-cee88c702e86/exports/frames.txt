@@ -1,0 +1,6 @@
+file 'C:/Users/new Radek/Documents/_vsc/_vsc_code/malin-stopmotion/docker-backend/projects/radek/14d8ac7c-f3f2-42d4-8543-cee88c702e86/frames/1777471096865_36106eac-980.jpg'
+file 'C:/Users/new Radek/Documents/_vsc/_vsc_code/malin-stopmotion/docker-backend/projects/radek/14d8ac7c-f3f2-42d4-8543-cee88c702e86/frames/1777471098369_eaea825f-026.jpg'
+file 'C:/Users/new Radek/Documents/_vsc/_vsc_code/malin-stopmotion/docker-backend/projects/radek/14d8ac7c-f3f2-42d4-8543-cee88c702e86/frames/1777471100059_b9915f34-446.jpg'
+file 'C:/Users/new Radek/Documents/_vsc/_vsc_code/malin-stopmotion/docker-backend/projects/radek/14d8ac7c-f3f2-42d4-8543-cee88c702e86/frames/1777471101659_e2eaa603-be2.jpg'
+file 'C:/Users/new Radek/Documents/_vsc/_vsc_code/malin-stopmotion/docker-backend/projects/radek/14d8ac7c-f3f2-42d4-8543-cee88c702e86/frames/1777471103652_db010f78-10a.jpg'
+file 'C:/Users/new Radek/Documents/_vsc/_vsc_code/malin-stopmotion/docker-backend/projects/radek/14d8ac7c-f3f2-42d4-8543-cee88c702e86/frames/1777471105685_8c9b336d-8d2.jpg'

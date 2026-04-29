@@ -1,0 +1,10 @@
+[
+    {
+        "merged": "C:\\Users\\new Radek\\.gradle\\daemon\\8.2\\com.stopmotion.app-merged_res-26:\\layout_activity_main.xml.flat",
+        "source": "C:\\Users\\new Radek\\.gradle\\daemon\\8.2\\com.stopmotion.app-main-27:\\layout\\activity_main.xml"
+    },
+    {
+        "merged": "com.stopmotion.app-merged_res-26:/layout_activity_main.xml.flat",
+        "source": "com.stopmotion.app-main-27:/layout/activity_main.xml"
+    }
+]

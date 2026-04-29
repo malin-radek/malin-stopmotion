@@ -1,0 +1,36 @@
+{
+  "pairings": [
+    {
+      "token": "1cefc520-7486-43b5-9c83-a61f66485c92",
+      "account_id": "default",
+      "account_name": "Default",
+      "created_at": 1777467835438,
+      "expires_at": 1777468735438,
+      "claimed": false
+    },
+    {
+      "token": "63796d7a-e14e-4849-9e0e-83913a03cfb0",
+      "account_id": "radek",
+      "account_name": "Radek",
+      "created_at": 1777470183530,
+      "expires_at": 1777471083530,
+      "claimed": true
+    },
+    {
+      "token": "ebdf8dca-3371-40c6-be10-c0da29336f0a",
+      "account_id": "radek",
+      "account_name": "Radek",
+      "created_at": 1777472050225,
+      "expires_at": 1777472950225,
+      "claimed": true
+    },
+    {
+      "token": "f72da83b-3026-4b3f-8be0-b2be4f1dd152",
+      "account_id": "radek",
+      "account_name": "Radek",
+      "created_at": 1777472926314,
+      "expires_at": 1777473826314,
+      "claimed": true
+    }
+  ]
+}

@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<incidents format="6" by="lint 8.2.2" type="partial_results">
+    <map id="UnsafeIntentLaunch">
+            <map id="unprotected">
+                <entry
+                    name="com.stopmotion.MainActivity"
+                    boolean="true"/>
+            </map>
+    </map>
+    <map id="UnusedResources">
+        <entry
+            name="model"
+            string="id[captureButton(U),deleteButton(U),tokenInput(U),trackingCheckbox(U),onionLayersSpinner(U),onionImage(U),syncButton(U),newProjectButton(U),nextButton(U),projectSpinner(U),pairButton(U),trackingOverlay(U),statusText(U),viewFinder(U),backendInput(U),prevButton(U),deleteTailButton(U)],layout[activity_main(U)],style[Theme_AppCompat_NoActionBar(R)];;;;"/>
+    </map>
+
+</incidents>

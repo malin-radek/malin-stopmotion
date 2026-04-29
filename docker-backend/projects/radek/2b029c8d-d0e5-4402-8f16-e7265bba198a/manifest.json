@@ -1,0 +1,19 @@
+{
+  "id": "2b029c8d-d0e5-4402-8f16-e7265bba198a",
+  "local_id": "2b029c8d-d0e5-4402-8f16-e7265bba198a",
+  "account_id": "radek",
+  "project": "Telefon offline",
+  "fps": 12,
+  "resolution": "1920x1080",
+  "orientation": "landscape",
+  "created_at": 1777470500406,
+  "updated_at": 1777499071922,
+  "frames": [],
+  "deleted_frame_ids": [
+    "a18bce8d-9869-422b-a59a-6960529b749b",
+    "e3a0deb2-ca1d-4b67-a54c-cb46addbce38",
+    "ddb145a3-84fd-4ac0-8a52-d70905bbc676",
+    "fe4e4b79-7315-46bb-8e83-91e91d67ccb4",
+    "979fccd5-d74b-4415-ad3b-de4b28a8a74e"
+  ]
+}

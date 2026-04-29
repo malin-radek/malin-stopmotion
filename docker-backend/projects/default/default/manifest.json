@@ -1,0 +1,13 @@
+{
+  "id": "default",
+  "local_id": "default",
+  "account_id": "default",
+  "project": "default",
+  "fps": 12,
+  "resolution": "1920x1080",
+  "orientation": "landscape",
+  "created_at": 1777467826440,
+  "updated_at": 1777467826440,
+  "frames": [],
+  "deleted_frame_ids": []
+}

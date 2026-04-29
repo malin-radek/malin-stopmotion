@@ -1,0 +1,62 @@
+{
+  "id": "test1",
+  "local_id": null,
+  "account_id": "radek",
+  "project": "test1",
+  "fps": 15,
+  "resolution": "1920x1080",
+  "orientation": "landscape",
+  "created_at": 1777468851755,
+  "updated_at": 1777499071938,
+  "frames": [
+    {
+      "id": "71656742-00f",
+      "local_id": "40186d95-771e-4222-a2af-a7a419bea0ca",
+      "filename": "1777470548557_71656742-00f.jpg",
+      "thumbnail": "1777470548557_71656742-00f.jpg",
+      "timestamp": 1777470548557,
+      "source": "phone:3940c948-f64e-41a6-aad7-1dc98755e7ae"
+    },
+    {
+      "id": "193fca55-679",
+      "local_id": "bb592259-fcf5-4cb5-85a5-081b99a8097d",
+      "filename": "1777470550551_193fca55-679.jpg",
+      "thumbnail": "1777470550551_193fca55-679.jpg",
+      "timestamp": 1777470550551,
+      "source": "phone:3940c948-f64e-41a6-aad7-1dc98755e7ae"
+    },
+    {
+      "id": "a7557bbe-d74",
+      "local_id": "9768313b-8e54-420d-a937-0901d883bc0d",
+      "filename": "1777470551721_a7557bbe-d74.jpg",
+      "thumbnail": "1777470551721_a7557bbe-d74.jpg",
+      "timestamp": 1777470551721,
+      "source": "phone:3940c948-f64e-41a6-aad7-1dc98755e7ae"
+    },
+    {
+      "id": "9b7f48a9-ebd",
+      "local_id": "9ec8069f-aa70-4b61-bb2d-b9258a14318b",
+      "filename": "1777470552744_9b7f48a9-ebd.jpg",
+      "thumbnail": "1777470552744_9b7f48a9-ebd.jpg",
+      "timestamp": 1777470552744,
+      "source": "phone:3940c948-f64e-41a6-aad7-1dc98755e7ae"
+    },
+    {
+      "id": "c47334e7-d00",
+      "local_id": "edf93599-c14f-4532-9b2b-f1c381e183c7",
+      "filename": "1777470553789_c47334e7-d00.jpg",
+      "thumbnail": "1777470553789_c47334e7-d00.jpg",
+      "timestamp": 1777470553789,
+      "source": "phone:3940c948-f64e-41a6-aad7-1dc98755e7ae"
+    },
+    {
+      "id": "918160be-5b8",
+      "local_id": "ee80d0de-2154-4502-94f5-a58ee0119c00",
+      "filename": "1777470604682_918160be-5b8.jpg",
+      "thumbnail": "1777470604682_918160be-5b8.jpg",
+      "timestamp": 1777470604682,
+      "source": "phone:3940c948-f64e-41a6-aad7-1dc98755e7ae"
+    }
+  ],
+  "deleted_frame_ids": []
+}

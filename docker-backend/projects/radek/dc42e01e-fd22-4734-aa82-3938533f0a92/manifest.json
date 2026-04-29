@@ -1,0 +1,22 @@
+{
+  "id": "dc42e01e-fd22-4734-aa82-3938533f0a92",
+  "local_id": "dc42e01e-fd22-4734-aa82-3938533f0a92",
+  "account_id": "radek",
+  "project": "Telefon offline",
+  "fps": 12,
+  "resolution": "1920x1080",
+  "orientation": "landscape",
+  "created_at": 1777472942969,
+  "updated_at": 1777499071905,
+  "frames": [
+    {
+      "id": "fc244a58-2d4",
+      "local_id": "63059f29-45c2-40c7-976e-da052107df42",
+      "filename": "1777473264453_fc244a58-2d4.jpg",
+      "thumbnail": "1777473264453_fc244a58-2d4.jpg",
+      "timestamp": 1777473264453,
+      "source": "phone:128e33b2-88a0-468c-b02c-46fe19e33508"
+    }
+  ],
+  "deleted_frame_ids": []
+}

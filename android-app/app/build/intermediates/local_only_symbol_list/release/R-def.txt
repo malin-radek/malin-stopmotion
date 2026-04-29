@@ -1,0 +1,20 @@
+R_DEF: Internal format may change without notice
+local
+id backendInput
+id captureButton
+id deleteButton
+id deleteTailButton
+id newProjectButton
+id nextButton
+id onionImage
+id onionLayersSpinner
+id pairButton
+id prevButton
+id projectSpinner
+id statusText
+id syncButton
+id tokenInput
+id trackingCheckbox
+id trackingOverlay
+id viewFinder
+layout activity_main
