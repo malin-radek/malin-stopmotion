@@ -2,13 +2,13 @@ version: "3.9"
 
 services:
   stopmotion-backend:
+    build: .
     image: ghcr.io/malin-radek/malin-stopmotion:latest
-    ports:
-      - "8000:8000"
     environment:
-      - PHONE_IP=${PHONE_IP:-192.168.1.100}
+      - PHONE_IP=${PHONE_IP:-192.168.10.12}
       - PHONE_PORT=${PHONE_PORT:-8081}
+      - PROJECTS_DIR=/app/projects
     volumes:
       - ./projects:/app/projects
     restart: unless-stopped
-    network_mode: host   # host-network żeby dosięgnąć telefonu w tej samej sieci WiFi
+    network_mode: host   # host-network: backend/GUI pod :8000 i dostep do telefonu w tej samej sieci WiFi

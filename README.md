@@ -1,123 +1,105 @@
-# Stop-Motion Studio – MVP
+# Stop-Motion Studio
 
-Telefon jako kamera → Docker backend → Desktop GUI z onion skinning.
+Telefon z aplikacja Android rejestruje material, backend w Dockerze synchronizuje konta/projekty/klatki, a GUI webowe jest wbudowane w backend pod `http://localhost:8000/`.
 
 ## Architektura
 
 ```
-[Telefon Android] ──MJPEG:8081──▶ [Docker Backend :8000] ──▶ [Desktop GUI PyQt6]
-                                         │
-                                    /projects/ (PNG + JSON)
+[Android/Kotlin]
+  - lokalne projekty i material offline
+  - mini cache do onion skin
+  - sync po odzyskaniu backendu
+        |
+        | /pairings/claim, /mobile/sync
+        v
+[Docker Backend/FastAPI]
+  - konta, projekty, telefony, klatki
+  - QR pairing
+  - render MP4 przez ffmpeg
+        |
+        v
+[GUI web w kontenerze]
+  - konta i projekty
+  - parowanie telefonu QR
+  - capture przez legacy stream albo material zsynchronizowany z telefonu
+  - render koncowego filmu
 ```
 
-## 1. Android – telefon jako kamera
+Stary desktopowy PyQt GUI zostaje w `desktop-gui/`, ale aktualny panel administracyjny jest serwowany bezposrednio przez backend.
 
-### Wymagania
-- Android 8.0+
-- Uprawnienia: CAMERA, INTERNET
-- Telefon i komputer w tej samej sieci WiFi
+## Backend + GUI w Dockerze
 
-### Build
-```bash
-cd android-app
-./gradlew assembleDebug
-adb install app/build/outputs/apk/debug/app-debug.apk
-```
-
-Po uruchomieniu apki:  
-- Wyświetla adres IP: `http://192.168.1.XX:8081/stream`
-- Endpointy:
-  - `GET /stream` → MJPEG stream (ciągły)
-  - `GET /frame`  → pojedyncza klatka JPEG
-
----
-
-## 2. Docker Backend
-
-### Uruchomienie
 ```bash
 cd docker-backend
-
-# Ustaw IP telefonu:
-export PHONE_IP=192.168.1.XX   # <-- adres z ekranu apki
-
 docker-compose up --build
 ```
 
-Lub bez Docker:
-```bash
-pip install -r requirements.txt
-PHONE_IP=192.168.1.XX uvicorn main:app --host 0.0.0.0 --port 8000
-```
+Otworz:
 
-### API
-| Endpoint | Metoda | Opis |
-|---|---|---|
-| `/stream` | GET | Proxy MJPEG dla GUI |
-| `/frame/take?project=X` | POST | Zapisz klatkę do projektu |
-| `/frames?project=X` | GET | Lista klatek + FPS |
-| `/frames/{id}?project=X` | DELETE | Usuń klatkę (undo) |
-| `/frame/{id}.jpg?project=X` | GET | Pobierz JPEG klatki |
-| `/projects` | GET | Lista wszystkich projektów |
-| `/projects/{name}/fps` | POST | Ustaw FPS projektu |
-| `/config` | GET/POST | Zmień IP telefonu bez restartu |
+- GUI: `http://localhost:8000/`
+- API: `http://localhost:8000/docs`
 
-Swagger UI: `http://localhost:8000/docs`
+Material jest trzymany w `docker-backend/projects`:
 
----
-
-## 3. Desktop GUI (PyQt6)
-
-### Instalacja
-```bash
-cd desktop-gui
-pip install -r requirements.txt
-python gui.py
-```
-
-### Sterowanie
-| Akcja | Klawisz |
-|---|---|
-| Zapisz klatkę | SPACJA |
-| Cofnij ostatnią | Z lub Ctrl+Z |
-| Toggle onion skin | przycisk UI |
-| Odtwórz animację | ▶ Odtwórz |
-
-### Funkcje
-- **Live preview** z telefonu przez MJPEG
-- **Onion skinning** – ostatnie 1-4 klatki jako czerwony/niebieski overlay
-- **Capture/Undo** – zapisuje do backendu, bufor lokalny do onion skin
-- **Odtwarzanie** – frame-by-frame z ustawionym FPS
-- **Multi-projekt** – wpisz nazwę projektu w polu
-- **FPS per projekt** – zapisywany w `manifest.json`
-
----
-
-## Struktura projektu (backend)
 ```
 projects/
-└── moj-projekt/
-    ├── manifest.json          ← {fps, frames: [{id, filename, timestamp}]}
-    └── frames/
-        ├── 1704000000000_ab12cd34.jpg
-        └── ...
+  accounts.json
+  pairings.json
+  <account-id>/
+    <project-id>/
+      manifest.json
+      frames/
+      thumbs/
+      exports/
 ```
 
----
+## Konta, projekty i parowanie
 
-## Sieć – checklist
+1. W GUI utworz konto albo wybierz `Default`.
+2. Utworz projekt, ustaw FPS, rozdzielczosc i tryb `landscape`/`portrait`.
+3. Kliknij `Paruj telefon`.
+4. Zeskanuj QR telefonem. QR zawiera link `stopmotion://pair?token=...`.
+5. Aplikacja Android przypisze telefon do konta i pobierze liste projektow.
 
-1. Telefon i komputer w tej samej sieci WiFi (lub hotspot)
-2. IP telefonu widoczne na ekranie apki Androida
-3. `docker-compose.yml` używa `network_mode: host` – dostęp do telefonu bez NAT
-4. Firewall Windows/Mac: odblokuj port 8000 jeśli GUI jest na innym PC
+Ten sam projekt moze miec wiele sparowanych telefonow. Telefon wysyla pelny material do backendu, a miniatury sa tylko cachem do onion i wydajnego przegladania.
 
----
+## Android
 
-## Rozbudowa MVP (kolejne kroki)
+Projekt Android:
 
-- [ ] WebSocket zamiast MJPEG dla mniejszego opóźnienia
-- [ ] Export GIF / MP4 przez FFmpeg (`ffmpeg -framerate 12 -i frames/%*.jpg out.gif`)
-- [ ] Onion skin w różnych kolorach per warstwa
-- [ ] Bluetooth trigger (remote shutter)
-- [ ] Tryb klatkowania: wbudowany timer co N sekund
+```bash
+cd android-app
+./gradlew assembleDebug
+```
+
+Repo zawiera konfiguracje Gradle, ale nie zawiera wrappera `gradlew`; jesli go brakuje lokalnie, otworz `android-app` w Android Studio albo dodaj wrapper standardowym `gradle wrapper`.
+
+Funkcje aplikacji:
+
+- wybor projektow przypisanych do sparowanego konta,
+- tworzenie projektu bez GUI i bez stalego polaczenia z backendem,
+- zapis pelnych JPEG lokalnie, gdy backend jest niedostepny,
+- miniatury lokalne do onion skin,
+- poruszanie onion po klatkach,
+- usuniecie biezacej klatki albo wszystkich od biezacej do konca,
+- ostrzezenie przy fotografowaniu pionowo w projekcie poziomym,
+- synchronizacja materialu po powrocie backendu.
+
+## Najwazniejsze endpointy
+
+| Endpoint | Metoda | Opis |
+|---|---|---|
+| `/accounts` | GET/POST | Lista i tworzenie kont |
+| `/accounts/{id}/projects` | GET/POST | Projekty konta |
+| `/accounts/{id}/pairing` | POST | Token i QR do parowania |
+| `/pairings/claim` | POST | Telefon przypisuje sie do konta |
+| `/mobile/sync` | POST | Synchronizacja projektow i klatek z telefonu |
+| `/projects/{id}/render` | POST | Render MP4 w backendzie |
+| `/stream` | GET | Legacy MJPEG proxy |
+| `/frame/take` | POST | Legacy capture z aktualnego streamu |
+
+## Uwagi
+
+- Priorytet synchronizacji ma material z telefonu. Backend nie nadpisuje klatki o tym samym `local_id`, tylko traktuje ja jako juz przyjeta.
+- Cache miniaturek moze byc odbudowany z materialu; nie jest traktowany jako zrodlo prawdy.
+- Finalny film powstaje w GUI/backendzie przez `ffmpeg`, nie na telefonie.
