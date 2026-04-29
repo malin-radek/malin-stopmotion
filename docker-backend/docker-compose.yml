@@ -2,7 +2,7 @@ version: "3.9"
 
 services:
   stopmotion-backend:
-    build: .
+    image: ghcr.io/malin-radek/malin-stopmotion:latest
     ports:
       - "8000:8000"
     environment:
